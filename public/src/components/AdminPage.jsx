@@ -314,15 +314,15 @@ ${body}\n
       {testReports.map((report) => {
         const resume = findResumeByUser(report.id);
         const employabilityScore = report.aiAnalysis?.employabilityScore || 'N/A';
+        const totalScore = (report.aiAnalysis?.correctAnswers/report.questions.length)*100;
         
-
 
         return (
           <tr key={report.id} className="hover:bg-gray-700 transition-colors duration-200">
             <td className="px-4 py-2 text-sm overflow-hidden text-ellipsis whitespace-nowrap">{report.createdAt ? new Date(report.createdAt.toDate()).toLocaleString() : 'N/A'}</td>
             <td className="px-4 py-2 text-sm overflow-hidden text-ellipsis whitespace-nowrap">{resume?.email || 'N/A'}</td>
             <td className="px-4 py-2 text-sm overflow-hidden text-ellipsis whitespace-nowrap">{employabilityScore}</td>
-            <td className="px-4 py-2 text-sm overflow-hidden text-ellipsis whitespace-nowrap">{(report.analysis.scorePercentage + ' %') || 'N/A'}</td>
+            <td className="px-4 py-2 text-sm overflow-hidden text-ellipsis whitespace-nowrap">{(totalScore+' %') || 'N/A'}</td>
             <td className="px-4 py-2 text-sm">
               {resume ? (
                 <a
