@@ -13,6 +13,10 @@ import { Button, IconButton, Tooltip as MuiTooltip, CircularProgress, Alert } fr
 import ConfirmationModal from './ConfirmationModal';
 import AdminDashboard from './AdminDashboard';
 import { ref, deleteObject } from "firebase/storage"; // Import ref and deleteObject correctly
+import ReportModal from './ReportModal';
+
+
+
 
 const AdminPage = () => {
   const { id } = useParams(); // Extract 'id' from route parameters
@@ -26,7 +30,20 @@ const AdminPage = () => {
   const [modalTitle, setModalTitle] = useState('');
   const [modalMessage, setModalMessage] = useState('');
   const [actionType, setActionType] = useState(''); // 'approve' or 'delete'
+  const [viewReport, setViewReport] = useState(false); // 'approve' or 'delete'
   const navigate = useNavigate();
+
+
+  const handleDownloadAndNavigate = (e, report) => {
+    // Set the selected report and open the modal
+    setSelectedReport(report);
+    setViewReport(true);
+  };
+  
+  const handleCloseReportModal = () => {
+    setViewReport(false);
+    setSelectedReport(null);
+  };
 
   // Fetch test reports from Firebase
   useEffect(() => {
@@ -43,6 +60,7 @@ const AdminPage = () => {
         setError('Failed to fetch test reports.');
       }
     };
+
 
     // Fetch resumes from Firebase
     const fetchResumes = async () => {
@@ -161,22 +179,6 @@ ${body}\n
   };
 
 
-  // Function to handle download and navigate
-  const handleDownloadAndNavigate = (e, report) => {
-    e.preventDefault(); // Prevent default link navigation
-
-    if (report.textReport) {
-      // Create the .txt file
-      const blob = new Blob([report.textReport], { type: 'text/plain' });
-      const fileName = `${report.id}_Report.txt`;
-
-      // Download the file using file-saver
-      saveAs(blob, fileName);
-    } else {
-      console.log(`No text content found for this report. ${report.id}`);
-      alert('No report data available for download.');
-    }
-  };
 
   // Function to handle action confirmations
   const handleAction = (type, report) => {
@@ -315,6 +317,8 @@ ${body}\n
         const resume = findResumeByUser(report.id);
         const employabilityScore = report.aiAnalysis?.employabilityScore || 'N/A';
         const totalScore = (report.aiAnalysis?.correctAnswers/report.questions.length)*100;
+
+        
         
 
         return (
@@ -401,13 +405,22 @@ ${body}\n
               </MuiTooltip>
             </td>
           </tr>
+          
         );
       })}
     </tbody>
   </table>
 </div>
 
-
+{/* Report Modal */}
+{viewReport && (
+      <ReportModal
+        isOpen={viewReport}
+        report={selectedReport}
+        onClose={handleCloseReportModal}
+        questionsData={selectedReport?.questions || []}
+      />
+    )}
               </section>
             }
           />

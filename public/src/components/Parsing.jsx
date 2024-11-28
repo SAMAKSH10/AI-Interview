@@ -27,6 +27,7 @@ const ResumeUpload = ({ onUploadComplete }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [loading,setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -319,11 +320,13 @@ const ResumeUpload = ({ onUploadComplete }) => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
+    setLoading(true);
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, username, password);
       const user = userCredential.user;
       setShowLoginModal(false); // Close modal
+      setLoading(false);
       navigate(`/${user.uid}/admin`); // Redirect to '/id/admin'
     } catch (error) {
       let errorMessage = 'Failed to login. Please check your credentials.';
@@ -343,6 +346,7 @@ const ResumeUpload = ({ onUploadComplete }) => {
       }
       setLoginError(errorMessage);
       console.error('Login error:', error);
+      setLoading(false);
     }
   };
 
@@ -477,7 +481,7 @@ const ResumeUpload = ({ onUploadComplete }) => {
       {showLoginModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white p-8 rounded-md shadow-lg max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900">Admin Login</h2>
+            <h2 className="text-2xl font-semibold mb-8 text-gray-900 ">Admin Login</h2>
             {loginError && (
               <div className="bg-red-100 text-red-600 p-3 rounded-md mb-4">
                 {loginError}
@@ -485,7 +489,7 @@ const ResumeUpload = ({ onUploadComplete }) => {
             )}
             <form onSubmit={handleLogin}>
               <div className="mb-4">
-                <label className="block text-gray-800 pb-2">Email</label>
+                <label className="block text-gray-800 pb-1 text-sm font-semibold">Email</label>
                 <input
                   type="email"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-800 outline-none focus:outline-blue-200"
@@ -495,8 +499,8 @@ const ResumeUpload = ({ onUploadComplete }) => {
                   placeholder="Enter your email"
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 pb-2">Password</label>
+              <div className="mb-4 my-5">
+                <label className="block text-gray-800 pb-1 text-sm  font-semibold">Password</label>
                 <input
                   type="password"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-800 outline-none focus:outline-blue-200"
@@ -506,19 +510,22 @@ const ResumeUpload = ({ onUploadComplete }) => {
                   placeholder="Enter your password"
                 />
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-end mt-12">
                 <button
                   type="button"
-                  className="mr-3 bg-gray-600 text-white px-4 py-2 rounded-md"
+                  className="mr-3 bg-gray-700 text-white  hover:bg-gray-800 px-4 py-2 rounded-md font-semibold"
                   onClick={closeLoginModal}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+                  disabled = {loading}
+                  className={`bg-blue-500 text-white px-4 py-2 rounded-md  font-semibold ${
+                    loading?('cursor-not-allowed bg-blue-400'):('hover:bg-blue-600 focus:outline-none focus:outline-blue-700') 
+                  }`}
                 >
-                  Login
+                  {loading?('logging in..'):('login')}
                 </button>
               </div>
             </form>

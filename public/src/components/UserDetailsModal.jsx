@@ -7,6 +7,8 @@ const UserDetailsModal = ({ setUserDetails, setResumeData, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [parsedData, setParsedData] = useState(null);
 
+  
+
   const handleResumeUploadComplete = (success, data) => {
     setLoading(false);
     if (success) {
