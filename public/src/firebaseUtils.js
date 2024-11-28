@@ -1,7 +1,9 @@
 // src/firebaseUtils.js
 import { db, storage } from './firebaseConfig';
 import { collection, addDoc, doc, getDoc, setDoc,updateDoc} from 'firebase/firestore';
-import { ref, uploadBytes } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+
 
 // Function to save the test report to Firebase
 export const saveTestReportToFirebase = async (testReport, username) => {
@@ -98,4 +100,23 @@ export const addQuestionToFirebase = async (questionData) => {
 export const updateTestReportInFirebase = async (username, updatedReport) => {
   const reportRef = doc(db, 'testReport', username);
   await updateDoc(reportRef, updatedReport);
+};
+
+export const updateTestReportInFirebase2 = async (userId, pdfBlob) => {
+  try {
+    const storageRef = ref(storage, `reports/${userId}_${Date.now()}.pdf`);
+    const uploadResult = await uploadBytes(storageRef, pdfBlob);
+    const fileUrl = await getDownloadURL(uploadResult.ref);
+
+    const reportRef = doc(db, "testReport", userId);
+    await updateDoc(reportRef, {
+      pdfReportUrl: fileUrl,
+      updatedAt: new Date().toISOString(),
+    });
+
+    console.log("PDF report uploaded and Firestore updated successfully.");
+  } catch (error) {
+    console.error("Error saving PDF report to Firestore:", error);
+    throw error;
+  }
 };

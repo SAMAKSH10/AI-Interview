@@ -38,29 +38,12 @@ const UserDetailsModal = ({ setUserDetails, setResumeData, onClose }) => {
           </div>
         </h2>
 
-        <div className="mb-6">
+        <div className="mb-6 justify-center items-center">
           <ResumeUpload
             onUploadStart={handleResumeUploadStart}
             onUploadComplete={handleResumeUploadComplete}
           />
         </div>
-
-        {/* Loading Indicator */}
-        {loading && (
-          <div className="flex justify-center mb-4">
-            <AiOutlineLoading3Quarters className="animate-spin h-6 w-6 text-indigo-500" />
-          </div>
-        )}
-
-        {/* Success Message */}
-        {resumeUploaded && parsedData && (
-          <div className="mt-4 flex items-center justify-center">
-            <AiOutlineCheckCircle className="w-6 h-6 text-green-500 mr-3" />
-            <span className="text-green-600 font-medium">
-              Resume uploaded successfully!
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -1,103 +1,92 @@
 import { query, collection, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebaseConfig'; // Adjust the path as necessary to import your Firestore db instance
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const fetchQuestionsBySkills = async (skills) => {
   try {
     const allQuestions = [];
+    const corporateQuestions = [];
+    const techQuestions = [];
 
     // Split skills into chunks of 30
     for (let i = 0; i < skills.length; i += 30) {
       const limitedSkills = skills.slice(i, i + 30);
       console.log(`Skills chunk: ${limitedSkills}`);
-      
+
       const q = query(collection(db, "questions"), where("skills", "array-contains-any", limitedSkills));
       const querySnapshot = await getDocs(q);
-      
+
       querySnapshot.forEach((doc) => {
-        allQuestions.push({ id: doc.id, ...doc.data() });
+        const questionData = { id: doc.id, ...doc.data() };
+
+        // Simple keyword or tag-based filter for corporate-related questions
+        const isCorporate = questionData.skills.some((skill) =>
+          ["corporate"].includes(skill.toLowerCase())
+        );
+
+        if (isCorporate && corporateQuestions.length < 5) {
+          corporateQuestions.push(questionData);
+        } else if (!isCorporate && techQuestions.length < 10) {
+          techQuestions.push(questionData);
+        }
       });
+
+      // Break early if quotas are fulfilled
+      if (corporateQuestions.length >= 5 && techQuestions.length >= 10) break;
     }
 
-    // Fetch additional questions if needed
-    const additionalQuestions = await generateAdditionalQuestionsAI(skills, 5);
+    // Generate additional questions if quotas are not met
+    const additionalTechQuestions = techQuestions.length < 10
+      ? await generateAdditionalQuestionsAI(skills, 10 - techQuestions.length)
+      : [];
 
-  
-
-    console.log(additionalQuestions);
-    return [...allQuestions, ...additionalQuestions];
-    // return allQuestions;
+    console.log([...techQuestions, ...additionalTechQuestions, ...corporateQuestions]);
+    return [...techQuestions, ...additionalTechQuestions, ...corporateQuestions];
   } catch (error) {
     console.error("Error fetching questions: ", error);
     throw error;
   }
 };
 
-const generateAdditionalQuestionsAI = async (skills, limit) => {
-  const url = 'https://chat-gpt26.p.rapidapi.com/';
 
-  const options = {
-    method: 'POST',
-    headers: {
-      'x-rapidapi-key': '588f27f290msh8a5223a55a79a53p1f2c84jsn5bc65aefa67f',
-      'x-rapidapi-host': 'chat-gpt26.p.rapidapi.com',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      messages: [
-        {
-          role: "system",
-          content: "Generate the hardest 5 questions."
-        },
-        {
-          role: "user",
-          content: `Here are skills: ${skills}. Generate ${limit} hardest questions, and avoid corporate topics.`
-        }
-      ],
-      model: 'gpt-3.5-turbo',
-      max_tokens: 900,
-      temperature: 0.9,
-    }),
-  };
+export const generateAdditionalQuestionsAI = async (skills, limit) => {
+  const genAI = new GoogleGenerativeAI(import.meta.env.VITE_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const prompt = `Here are skills: ${skills}. Generate exactly ${limit} hardest technical questions. In the format Ques: *** question generated ***`;
 
   try {
-    const response = await fetch(url, options);
+    const result = await model.generateContent(prompt);
+    //console.log("Full AI Response:", result); // Log the entire response
 
-    // Check if the response is successful
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
+    // Ensure result has candidates and access the response text
+    const responseText = result.response?.text?.() || '';
+    //console.log("AI Response Text: ", responseText);
 
-    const result = await response.json();
-    console.log("AI Response: ", result); // Debugging
+    // Use regex to extract questions based on the expected format
+    const questionsArray = responseText
+      .split('\n') // Split the response text by new lines
+      .filter(line => line.startsWith('Ques: ')) // Filter lines that start with 'Ques: ***'
+      .map((line, index) => {
+        // Extract the question text using regex
+        const match = line.match(/^Ques:\s?(.*)$/);
+        const question = match && match[1] ? match[1].trim() : 'Unknown question'; // Default if regex fails
 
-    // Handle the text content returned by the AI (assuming format)
-    const rawText = result.choices[0].message.content;
+        return {
+          id: `generated_${index + 1}`,
+          question, // Clean question text
+          userAnswer: '',
+          userTextAnswer: '',
+          type: 'text',
+          skills: "additional",
+          isCorrect: null,
+        };
+      })
+      .slice(0, limit); // Limit the number of questions extracted
 
-    // Parsing the response to extract questions properly
-    const unwantedPhrases = [
-      "Here are five challenging technical questions based on the skills you mentioned:",
-      "Sure! Here are five challenging technical questions based on the listed skills:",
-    ];
-    
-    const questionsArray = rawText
-    .split(/\n\d+\.\s+/)
-    .filter(q => q.trim() !== '' && !unwantedPhrases.some(phrase => q.includes(phrase)))
-    .slice(1, 6) // Ensure we only take the first 5 questions
-    .map((q, index) => ({
-      id: `generated_${index + 1}`, // IDs will be from 1 to 5
-      question: q.trim(),
-      userAnswer: '',
-      userTextAnswer: '',
-      type: 'text',
-      skills: "additional",
-      isCorrect: null,
-    }));
-  
-
-    console.log("Extracted questions:", questionsArray);
+    //console.log("Extracted questions:", questionsArray);
     return questionsArray;
   } catch (error) {
-    console.error("Error generating additional questions from AI: ", error);
-    throw error;
+    console.error("Error generating questions with AI: ", error);
+    return []; // Return an empty array on error
   }
 };

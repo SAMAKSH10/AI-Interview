@@ -1,18 +1,18 @@
-// =========================
-// Report Analyzer with Firebase Integration and AI Evaluations
-// =========================
-
-// import {updateTestReportInFirebase} from '../firebaseUtils';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const analyzeReportWithAI = async (report) => {
+
   // Filter out questions with 'Corporate' skill and ensure type is 'mcq' or 'text'
   const questionsToEvaluate = report.questions.filter(
     (q) =>
-      (q.type === 'mcq' || q.type === 'text') &&
-      !(q.skills && q.skills.includes('Corporate'))
+      (q.type === 'text')
+      //    || q.type === 'text') &&
+      // !(q.skills && q.skills.includes('Corporate'))
   );
+  const mcqQuestions = report.questions.filter((q)=>(q.type ==='mcq'));
+  
 
-  const totalQuestions = questionsToEvaluate.length;
+  const totalQuestions = report.questions.length;
 
   if (totalQuestions === 0) {
     console.warn('No evaluable questions found in the report.');
@@ -22,7 +22,7 @@ export const analyzeReportWithAI = async (report) => {
 
   // Evaluate each question and collect results
   const evaluationPromises = questionsToEvaluate.map(async (question) => {
-    const userAnswer = question.userAnswer;
+    const userAnswer = question.userTextAnswer;
 
     // Treat 'N/A', null, undefined, or empty string as unanswered
     if (!userAnswer || userAnswer.toLowerCase() === 'n/a') {
@@ -31,7 +31,7 @@ export const analyzeReportWithAI = async (report) => {
     }
 
     try {
-      if (question.type === 'mcq') {
+      if (question.type !== 'text') {
         // Evaluate MCQ questions
         const isCorrect = userAnswer === question.correctAnswer;
         return { isCorrect, type: 'mcq' };
@@ -51,13 +51,32 @@ export const analyzeReportWithAI = async (report) => {
   });
 
   // Wait for all evaluations to complete
-  const evaluationResults = await Promise.all(evaluationPromises);
+  //const evaluationResults = await Promise.all(evaluationPromises);
+  
 
   // Aggregate the results
   let correctAnswers = 0;
   let mcqCorrect = 0;
   let textCorrect = 0;
 
+ // Evaluate MCQs using index and question
+ mcqQuestions.forEach((question, index) => {
+  // console.log(`Evaluating Question ${index + 1}: ${question.question}`);
+  // console.log(`User Answer: ${question.userAnswer}`);
+  // console.log(`Correct Answer: ${question.correctAnswer}`);
+
+  // Compare userAnswer with correctAnswer
+  if (question.userAnswer && question.userAnswer === question.correctAnswer) {
+    correctAnswers++;
+    // console.log(`Question ${index + 1}: Correct`);
+  } else {
+    // console.log(`Question ${index + 1}: Incorrect`);
+  }
+});
+
+
+
+  const evaluationResults = await Promise.all(evaluationPromises);
   evaluationResults.forEach((result) => {
     if (result.isCorrect) {
       correctAnswers++;
@@ -68,7 +87,6 @@ export const analyzeReportWithAI = async (report) => {
       }
     }
   });
-
   // Calculate the total score percentage
   const scorePercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
@@ -102,10 +120,6 @@ export const analyzeReportWithAI = async (report) => {
     urls: report.urls || [], // Include URLs from the original report
   };
 
-  // Store the final report in Firestore
-  // await updateTestReportInFirebase(id,finalReport);
-
-  // Return the final analysis report
   return finalReport;
 };
 
@@ -121,58 +135,64 @@ export const analyzeReportWithAI = async (report) => {
  * @returns {Promise<string>} - 'correct' or 'wrong'
  */
 const evaluateTextAnswerAI = async (question, userAnswer) => {
-  const url = 'https://chat-gpt26.p.rapidapi.com/';
+  const maxRetries = 3; // Maximum number of retries
+  const delayBetweenRetries = 2000; // Delay in milliseconds between retries (2 seconds)
+  
+  // Helper function to delay execution for a specified time
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  const options = {
-    method: 'POST',
-    headers: {
-      'x-rapidapi-key': '588f27f290msh8a5223a55a79a53p1f2c84jsn5bc65aefa67f',
-      'x-rapidapi-host': 'chat-gpt26.p.rapidapi.com',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a chatbot that determines whether an answer is correct or wrong. Respond with only "correct" or "wrong".',
-        },
-        {
-          role: 'user',
-          content: `Question: "${question}".\nUser's Answer: "${userAnswer}".\nIf the answer is correct, return "correct"; otherwise, return "wrong".`,
-        },
-      ],
-      model: 'gpt-3.5-turbo', // Corrected model name
-      max_tokens: 20, // Reduced tokens since response is short
-      temperature: 0, // Set to 0 for deterministic responses
-    }),
-  };
+  // Retry logic
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_API_KEY);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `
+      Evaluate the user's answer to the given question and respond with either "correct" or "wrong" without explanation.
+  
+      Examples:
+      Question: "What is the capital of India?"
+      User's Answer: "New Delhi is the capital of India"
+      Response: "correct"
+  
+      Question: "What is the capital of India?"
+      User's Answer: "India is the capital of India"
+      Response: "wrong"
+  
+      Now evaluate:
+      Question: ${question}
+      User's Answer: ${userAnswer}
+      Response:
+      `;
+  
+      const result = await model.generateContent(prompt);
+      console.log(result);
+  
+      // Extract evaluation from the response
+      let evaluation = 'wrong'; // Default to 'wrong'
+      if (result && result.response.text()) {
+        evaluation = result.response.text().trim().toLowerCase();
+        console.log('AI Evaluation:', evaluation);
+      } else {
+        console.error('AI did not return a valid evaluation:', result);
+      }
+  
+      return evaluation === 'correct' ? 'correct' : 'wrong';
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed:`, error.message);
+      
+      // If it is the last attempt, throw the error after retries are exhausted
+      if (attempt === maxRetries) {
+        console.error('Max retries reached. Returning default response (wrong).');
+        return 'wrong'; // Return 'wrong' as default in case of failure
+      }
 
-  try {
-    const response = await fetch(url, options);
-
-    // Check for a successful response
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      // Wait before retrying
+      console.log(`Retrying in ${delayBetweenRetries / 1000} seconds...`);
+      await delay(delayBetweenRetries);
     }
-
-    const result = await response.json();
-
-    // Extract evaluation from the response
-    let evaluation = 'wrong'; // Default to 'wrong'
-    if (result && result.choices && result.choices.length > 0) {
-      evaluation = result.choices[0].message.content.trim().toLowerCase();
-      console.log('AI Evaluation:', evaluation);
-    } else {
-      console.error('AI did not return a valid evaluation:', result);
-    }
-
-    return evaluation === 'correct' ? 'correct' : 'wrong';
-  } catch (error) {
-    console.error('Error evaluating text answer:', error.message);
-    return 'wrong'; // Treat errors as wrong
   }
 };
+
 
 /**
  * Function to generate AI-based feedback based on performance
@@ -188,62 +208,46 @@ const generateAIReportFeedback = async (
   correctAnswers,
   totalQuestions
 ) => {
-  const url = 'https://chat-gpt26.p.rapidapi.com/';
+  const maxRetries = 3; // Maximum number of retries
+  const delayBetweenRetries = 2000; // Delay in milliseconds between retries (2 seconds)
+  
+  // Helper function to delay execution for a specified time
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  // Create a query string for direct feedback request
-  const query = `User ID: ${report.id} answered ${correctAnswers} out of ${totalQuestions} questions correctly, resulting in a score of ${scorePercentage}%. The user had the following job expectations: ${JSON.stringify(
-    report.expectations
-  )}. If it doesn't align with the performance, then motivate the user. Based on their score and expectations, provide performance feedback and suggest areas to study if necessary. Also, based on the report, indicate whether the salary is justified or not.`;
+  // Retry logic
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const query = `User answered ${correctAnswers} out of ${totalQuestions} questions correctly, resulting in a score of ${scorePercentage}%. The user had the following job expectations: ${JSON.stringify(report.expectations)}. Provide performance feedback and suggest areas to study if necessary.`;
 
-  const options = {
-    method: 'POST',
-    headers: {
-      'x-rapidapi-key': '588f27f290msh8a5223a55a79a53p1f2c84jsn5bc65aefa67f',
-      'x-rapidapi-host': 'chat-gpt26.p.rapidapi.com',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a performance report generator based on the data provided. The report should also indicate whether the expectations meet the performance or not.',
-        },
-        {
-          role: 'user',
-          content: query,
-        },
-      ],
-      model: 'gpt-3.5-turbo', // Corrected model name
-      max_tokens: 200, // Increased tokens for a detailed response
-      temperature: 0.7, // Balanced creativity
-    }),
-  };
+    try {
+      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_API_KEY);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const result = await model.generateContent(query);
 
-  try {
-    const response = await fetch(url, options);
+      // console.log('Raw AI Feedback Result:', result); // Debug log
 
-    // Check for a successful response
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      let feedback = 'Could not generate feedback.';
+      if (result && result.response && result.response.text()) {
+        feedback = result.response.text().trim();
+      } else {
+        console.error('AI feedback generation failed. No valid response:', result);
+      }
+      return feedback;
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed:`, error.message);
+      
+      // If it is the last attempt, throw the error after retries are exhausted
+      if (attempt === maxRetries) {
+        console.error('Max retries reached. Returning default response.');
+        return 'Error generating feedback. Please try again.'; // Return fallback message after all retries fail
+      }
+
+      // Wait before retrying
+      console.log(`Retrying in ${delayBetweenRetries / 1000} seconds...`);
+      await delay(delayBetweenRetries);
     }
-
-    const result = await response.json();
-
-    // Extracting the feedback from the response
-    let feedback = 'Could not generate feedback.';
-    if (result && result.choices && result.choices.length > 0) {
-      feedback = result.choices[0].message.content.trim();
-      console.log('AI Feedback:', feedback);
-    } else {
-      console.error('AI feedback generation failed. No valid response:', result);
-    }
-    return feedback;
-  } catch (error) {
-    console.error('Error generating feedback:', error.message);
-    return 'Error generating feedback. Please try again.';
   }
 };
+
 
 /**
  * Helper function to calculate employability score based on score percentage

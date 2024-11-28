@@ -107,7 +107,7 @@ const ExpectationPage = () => {
         };
         await updateTestReportInFirebase(skills.email, fullReport);
         // Step 3: Redirect to final page after full analysis is saved
-        navigate('/final');
+        navigate('/final',{ replace: true });
       } catch (error) {
         console.error('Error submitting expectations and generating analysis:', error.message);
         setError('Failed to generate AI analysis. Please try again.');
@@ -219,7 +219,7 @@ const ExpectationPage = () => {
 
   return (
     <div
-      className="flex flex-col items-center p-4 bg-cover text-gray-300 min-h-screen"
+      className="flex flex-col items-center p-4 bg-cover text-gray-500 bg-white min-h-screen"
       style={{ backgroundImage: `url(${backgroundImage})` }}
     >
       {/* Job Expectations Form */}
@@ -230,7 +230,7 @@ const ExpectationPage = () => {
         <h2 className="text-4xl font-bold mb-6 text-gray-900">Job Expectations</h2>
         {/* Salary Expectation */}
         <div 
-          className="mb-6 relative group tooltip-container" 
+          className="mb-6 relative group tooltip-container outline-none border-none" 
           data-field="salary"
         >
           <label className="block text-gray-900 mb-2" htmlFor="salary">Salary Expectation</label>
@@ -239,22 +239,22 @@ const ExpectationPage = () => {
             name="salary"
             id="salary"
             placeholder="e.g. 3-4 LPA"
-            className="w-full p-3 bg-gray-100 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100 transition-colors duration-300"
+            className="w-full p-3 bg-gray-100 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300  transition-colors duration-300"
             value={expectations.salary}
             onChange={handleInputChange}
             required
           />
           {/* Eye Icon with Tooltip */}
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-3 right-3 border-none outline-none focus:border-none">
             <button
               type="button"
               onClick={() => toggleTooltip('salary')}
-              className="relative group"
+              className="relative group border-none outline-none focus:outline-none "
               aria-label="More information about Salary Expectation"
               aria-haspopup="true"
               aria-expanded={tooltipVisible.salary}
             >
-              <GoCrossReference className="h-5 w-5 text-slate-900 cursor-pointer hover:text-indigo-400 focus:outline-none" />
+              <GoCrossReference className="h-5 w-5 text-slate-800 hover:text-indigo-500  cursor-pointer outline-none border-none hover:border-none hover:outline-none" />
               {tooltipVisible.salary && tooltipMessages.salary && (
                 <Tooltip 
                   message={tooltipMessages.salary}
@@ -267,7 +267,7 @@ const ExpectationPage = () => {
         
         {/* Career Growth */}
         <div 
-          className="mb-6 relative group tooltip-container" 
+          className="mb-6 relative group tooltip-container border-none outline-none" 
           data-field="careerGrowth"
         >
           <label className="block text-gray-900 mb-2" htmlFor="careerGrowth">Career Growth</label>
@@ -276,22 +276,22 @@ const ExpectationPage = () => {
             name="careerGrowth"
             id="careerGrowth"
             placeholder="e.g., Opportunities for promotion, skill development"
-            className="w-full p-3 bg-gray-100 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100 transition-colors duration-300"
+            className="w-full p-3 bg-gray-100 text-gray-900 border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 transition-colors duration-300"
             value={expectations.careerGrowth}
             onChange={handleInputChange}
             required
           />
           {/* Eye Icon with Tooltip */}
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-3 right-3 border-none outline-none focus:outline-none">
             <button
               type="button"
               onClick={() => toggleTooltip('careerGrowth')}
-              className="relative group"
+              className="relative group border-none outline-none focus:outline-none"
               aria-label="More information about Career Growth"
               aria-haspopup="true"
               aria-expanded={tooltipVisible.careerGrowth}
             >
-              <GoCrossReference className="h-5 w-5 text-slate-900 cursor-pointer hover:text-indigo-400 focus:outline-none" />
+              <GoCrossReference className="h-5 w-5 text-slate-900 cursor-pointer  hover:text-indigo-500  focus:outline-none" />
               {tooltipVisible.careerGrowth && tooltipMessages.careerGrowth && (
                 <Tooltip 
                   message={tooltipMessages.careerGrowth}
@@ -311,27 +311,27 @@ const ExpectationPage = () => {
           <select
             name="learningOpportunities"
             id="learningOpportunities"
-            className="w-full p-3 bg-gray-100 text-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100 transition-colors duration-300"
+            className="w-full p-3 bg-gray-100 text-gray-500 rounded-lg  focus:outline-none focus:ring-2 focus:ring-gray-100 transition-colors duration-300"
             value={expectations.learningOpportunities}
             onChange={handleInputChange}
             required
           >
-            <option value="" disabled>Select an option</option>
-            <option value="Senior Trainer">Senior Trainer</option>
-            <option value="Corporate Training">Corporate Training</option>
-            <option value="AI-Based Training">AI-Based Training</option>
+            <option value="" className='text-gray-500 ' disabled>Select an option</option>
+            <option value="Senior Trainer" className='text-gray-800 hover:bg-indigo-500'>Senior Trainer</option>
+            <option value="Corporate Training" className='text-gray-800 hover:bg-indigo-500'>Corporate Training</option>
+            <option value="AI-Based Training" className='text-gray-800 hover:bg-indigo-500'>AI-Based Training</option>
           </select>
           {/* Eye Icon with Tooltip */}
           <div className="absolute top-3 right-3">
             <button
               type="button"
               onClick={() => toggleTooltip('learningOpportunities')}
-              className="relative group"
+              className="relative group border-none outline-none focus:outline-none"
               aria-label="More information about Learning Opportunities"
               aria-haspopup="true"
               aria-expanded={tooltipVisible.learningOpportunities}
             >
-              <GoCrossReference className="h-5 w-5 text-slate-900 cursor-pointer hover:text-indigo-400 focus:outline-none" />
+              <GoCrossReference className="h-5 w-5 text-slate-900 cursor-pointer hover:text-indigo-500 focus:outline-none" />
               {tooltipVisible.learningOpportunities && tooltipMessages.learningOpportunities && (
                 <Tooltip 
                   message={tooltipMessages.learningOpportunities} 
@@ -345,7 +345,7 @@ const ExpectationPage = () => {
         {/* Submit Button */}
         <button
           type="submit"
-          className="w-full p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed outline-none border-none focus:outline-none"
           disabled={isSubmitting}
         >
           {isSubmitting ? (

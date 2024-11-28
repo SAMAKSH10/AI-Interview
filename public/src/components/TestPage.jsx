@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { startRecording, stopRecording } from './recorder';
-import { fetchQuestionsBySkills } from './fetchQuestions';
-import { saveTestReportToFirebase } from '../firebaseUtils';
-import UserDetailsModal from './UserDetailsModal';
-import skillsContext from '../Context/skills';
+import React, { useState, useEffect, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { startRecording, stopRecording } from "./recorder";
+import { fetchQuestionsBySkills } from "./fetchQuestions";
+import { saveTestReportToFirebase } from "../firebaseUtils";
+import UserDetailsModal from "./UserDetailsModal";
+import skillsContext from "../Context/skills";
 import {
   AiOutlineLoading3Quarters,
   AiOutlineStop,
   AiOutlinePlayCircle,
-} from 'react-icons/ai';
+} from "react-icons/ai";
 
 const TestPage = () => {
   const [userDetails, setUserDetails] = useState(null);
@@ -34,16 +34,18 @@ const TestPage = () => {
     const fetchQuestions = async () => {
       if (resumeData && resumeData.skills) {
         try {
-          const combinedSkills = Array.from(new Set([...resumeData.skills, 'Corporate']));
+          const combinedSkills = Array.from(
+            new Set([...resumeData.skills, "Corporate"])
+          );
           const fetchedQuestions = await fetchQuestionsBySkills(combinedSkills);
           const initializedQuestions = fetchedQuestions.map((question) => ({
             ...question,
-            userAnswer: '', // For multiple-choice
-            userTextAnswer: '', // For text-based answers
+            userAnswer: "", // For multiple-choice
+            userTextAnswer: "", // For text-based answers
           }));
           setQuestions(initializedQuestions);
         } catch (error) {
-          console.error('Error fetching questions:', error);
+          console.error("Error fetching questions:", error);
         }
       }
     };
@@ -72,6 +74,7 @@ const TestPage = () => {
   useEffect(() => {
     if (testStarted) {
       startRecording();
+
       setIsRecording(true);
     }
     return () => {
@@ -124,21 +127,37 @@ const TestPage = () => {
   const handleSubmitTest = async () => {
     setIsSubmitting(true);
     await stopRecording(skills.email, skills.email);
-    await saveTestReportToFirebase({ userDetails, questions, timePerQuestion, textAnswers },skills.email);
+    await saveTestReportToFirebase(
+      { userDetails, questions, timePerQuestion, textAnswers },
+      skills.email
+    );
     setIsSubmitting(false);
-    navigate('/expectation');
+    navigate("/expectation");
   };
 
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+    return `${minutes}:${remainingSeconds < 10 ? "0" : ""}${remainingSeconds}`;
   };
 
   const handleStartTest = () => {
     setTestStarted(true);
     setIsTimerActive(true);
     setQuestionStartTime(Date.now());
+  };
+
+  // Check if the current question is answered
+  const isAnswerSelected = () => {
+    const currentQuestion = questions[currentQuestionIndex];
+    if (currentQuestion.type === "mcq") {
+      return currentQuestion.userAnswer !== ""; // Check if MCQ is selected
+    } else {
+      return (
+        currentQuestion.userTextAnswer &&
+        currentQuestion.userTextAnswer.trim() !== ""
+      ); // Check if text answer is provided
+    }
   };
 
   // Calculate progress percentage
@@ -162,10 +181,11 @@ const TestPage = () => {
         <div className="bg-red-700 text-white rounded-lg p-8 max-w-md w-full text-center shadow-lg">
           <h2 className="text-3xl font-semibold mb-6">Permission Denied</h2>
           <p className="mb-6">
-            Please ensure all required permissions are granted to continue the test.
+            Please ensure all required permissions are granted to continue the
+            test.
           </p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => window.location.reload()}
             className="mt-4 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition text-lg font-medium"
           >
             Return Home
@@ -175,7 +195,7 @@ const TestPage = () => {
         // Test Started Screen
         <div className="bg-gradient-to-br from-gray-50 to-white text-gray-800 rounded-lg shadow-xl p-10 max-w-3xl w-full relative shadow-gray-500">
           {/* Progress Bar */}
-          <div className="w-full bg-gray-700 rounded-full h-3 mb-8">
+          <div className="w-full bg-gray-200 rounded-full h-3 mb-8">
             <div
               className="bg-blue-500 h-3 rounded-full transition-all duration-500"
               style={{ width: `${progressPercentage}%` }}
@@ -190,7 +210,7 @@ const TestPage = () => {
             <div className="flex items-center space-x-4">
               {isRecording ? (
                 <button
-                  onClick={()=>navigate('/')}
+                  onClick={() => navigate("/")}
                   className="flex items-center bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition text-lg font-medium"
                   aria-label="Stop Recording and Submit Test"
                 >
@@ -220,108 +240,132 @@ const TestPage = () => {
                 <h3 className="font-semibold text-2xl mb-6">
                   Question {currentQuestionIndex + 1} of {questions.length}
                 </h3>
-                <p className="text-xl mb-6 font-medium">{questions[currentQuestionIndex]?.question}</p>
+                <p className="text-xl mb-6 font-medium">
+                  {questions[currentQuestionIndex]?.question}
+                </p>
 
                 {/* Render based on question type */}
-                {questions[currentQuestionIndex]?.type !== 'mcq' ? (
+                {questions[currentQuestionIndex]?.type !== "mcq" ? (
                   // Render Textarea for Non-MCQ Questions
                   <div>
-                    <label htmlFor="textAnswer" className="block text-lg font-medium text-gray-900 mb-2">
+                    <label
+                      htmlFor="textAnswer"
+                      className="block text-lg font-medium text-gray-900 mb-2"
+                    >
                       Your Answer:
                     </label>
                     <textarea
                       id="textAnswer"
-                      className="w-full p-4 border bg-gray-100 border-gray-400 rounded-lg focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-900 outline-0"
-                      placeholder="Type your answer here..."
-                      value={questions[currentQuestionIndex]?.userTextAnswer || ''}
+                      rows="4"
+                      className="w-full p-4 bg-gray-100 rounded-lg text-gray-800 mt-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={textAnswers[currentQuestionIndex] || ""}
                       onChange={handleTextAnswerChange}
+                      placeholder="Type your answer here..."
                     />
                   </div>
                 ) : (
-                  // Render MCQ Options
-                  <ul className="space-y-4">
-                    {questions[currentQuestionIndex]?.choices?.map((choice, index) => (
-                      <li key={index}>
-                        <button
-                          className={`w-full flex items-center px-6 py-4 border rounded-lg hover:bg-blue-200 transition  
-                            ${
-                              questions[currentQuestionIndex]?.userAnswer === choice
-                                ? 'bg-blue-200 text-gray-900 border-blue-700'
-                                : 'bg-white text-gray-900 border-gray-700'
-                            } text-lg font-medium`}
+                  // Render Multiple Choice Answers
+                  <div className="space-y-4">
+{questions[currentQuestionIndex].choices.map((choice, index) => (
+                        <div
+                          key={index}
                           onClick={() => handleSelectAnswer(choice)}
+                          className={`cursor-pointer p-4 rounded-lg border transition ${
+                            questions[currentQuestionIndex].userAnswer === choice
+                              ? 'border-blue-500 bg-blue-100'
+                              : 'border-gray-300 bg-white'
+                          }`}
                         >
-                          <span className="mr-4">{String.fromCharCode(65 + index)}.</span>
                           {choice}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                        </div>
+                      ))}
+                  </div>
                 )}
               </div>
 
-              {/* Navigation Buttons */}
-              <div className="flex justify-between">
-                <button
+              {/* Next Button */}
+              <div className="flex justify-between mt-10">
+                {!(currentQuestionIndex === questions.length - 1)&&(
+                  <button
                   onClick={handleNextQuestion}
-                  className={`flex items-center bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition text-lg font-medium 
-                    ${currentQuestionIndex === questions.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  disabled={currentQuestionIndex === questions.length - 1}
-                  aria-label="Next Question"
+                  disabled={!isAnswerSelected()}
+                  className={`px-6 py-3 rounded-lg text-lg font-medium transition border-none focus:outline-none outline-none ${
+                    isAnswerSelected()
+                      ? "bg-blue-600 hover:bg-blue-700 focus:outline-blue-400 text-white"
+                      : "bg-gray-400 cursor-not-allowed text-white"
+                  }`}
                 >
                   Next
                 </button>
-                {currentQuestionIndex === questions.length - 1 && (
+                ) }
+
+                {/* Submit Button */}
+                {(currentQuestionIndex === questions.length - 1)&& (
                   <button
                     onClick={handleSubmitTest}
-                    className="flex items-center bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition text-lg font-medium"
-                    disabled={isSubmitting}
-                    aria-label="Submit Test"
+                    disabled={isSubmitting || !isAnswerSelected()}
+                    className={`px-6 py-3 rounded-lg text-lg font-medium transition text-white ${
+                      isSubmitting && !isAnswerSelected()
+                        ? "bg-green-400 cursor-not-allowed"
+                        : "bg-green-600 hover:bg-green-700"
+                    }`}
                   >
-                    {isSubmitting ? (
-                      <div className="flex items-center">
-                        <AiOutlineLoading3Quarters className="w-6 h-6 mr-3 animate-spin" />
-                        Submitting...
-                      </div>
-                    ) : (
-                      'Submit Test'
-                    )}
+                    {isSubmitting ? ("Submitting..." ):( "Submit Test")}
                   </button>
                 )}
               </div>
             </div>
           ) : (
-            <p className="text-center text-xl">No questions available.</p>
+            <div className="flex items-center justify-center mt-10">
+              <AiOutlineLoading3Quarters className="animate-spin w-8 h-8 text-gray-600" />
+              <span className="ml-4 text-lg text-gray-700">
+                Loading Questions...
+              </span>
+            </div>
           )}
         </div>
       ) : (
-        // Pre-Test Instructions Screen
-        <div className="relative bg-gradient-to-tr from-slate-50 to-white text-gray-900 rounded-xl shadow-lg p-12 max-w-xl w-full mx-auto overflow-hidden shadow-gray-600">
-  {/* Background Animation */}
-  <div className="absolute inset-0 z-0 opacity-30 pointer-events-none" id="vanta-bg"></div>
+        <div className="bg-white  text-gray-800  p-10 max-w-3xl w-full text-center rounded-lg shadow-lg ">
+          {/* Title Section */}
+          <h1 className="text-4xl font-semibold mb-10 mt-3">
+            Welcome to the Skill Assessment Test
+          </h1>
 
-  {/* Content */}
-  <h2 className="text-4xl font-extrabold mb-8 text-center relative z-10">Important Guidelines</h2>
-  <ul className="list-disc list-inside space-y-4 text-lg leading-relaxed relative z-10 ">
-    <li>Ensure a stable internet connection throughout the test.</li>
-    <li>Avoid refreshing the page or closing the browser during the test.</li>
-    <li>Your screen, camera, and microphone will be actively recorded , And capture entire screen throughout the test.</li>
-    <li>Complete the test within the given time limit.</li>
-    <li>Attempt the test fairly and All the Best !</li>
-  </ul>
-  <div className="mt-10 flex justify-center relative z-10">
-    <button
-      onClick={handleStartTest}
-      className={`border border-gray-600 bg-blue-200 text-gray-900 px-10 py-3 rounded-lg hover:bg-blue-300 hover:text-black transition-colors duration-300 text-lg font-medium
-        ${!userDetails || !resumeData ? 'opacity-60 cursor-not-allowed' : ''}`}
-      disabled={!userDetails || !resumeData}
-      aria-label="Start Test">
-      Start Test
-    </button>
-  </div>
-</div>
+          {/* Warnings and Precautions Section */}
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg">
+            <h2 className="text-xl font-semibold">⚠️ Important Warnings:</h2>
+            <ul className="mt-6 text-sm text-left list-disc list-inside space-y-2">
+              <li>
+                No external devices or assistance is allowed during the test.
+              </li>
+              <li>
+                Switching tabs or windows will be flagged as suspicious
+                activity.
+              </li>
+              <li>Any form of cheating will result in disqualification.</li>
+            </ul>
+          </div>
+          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded-lg">
+            <h2 className="text-xl font-semibold">
+              🛡️ Precautions Before Starting:
+            </h2>
+            <ul className="mt-6 space-y-2 text-sm text-left list-disc list-inside">
+              <li>
+                Ensure your webcam and microphone are functioning properly.
+              </li>
+              <li>Make sure you have a stable internet connection.</li>
+              <li>Find a quiet, well-lit environment for the test.</li>
+            </ul>
+          </div>
 
-
+          {/* Start Test Button */}
+          <button
+            onClick={handleStartTest}
+            className="mt-6 bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition text-xl font-medium border-none outline-none focus:outline-none"
+          >
+            Start Test
+          </button>
+        </div>
       )}
     </div>
   );

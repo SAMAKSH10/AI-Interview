@@ -2,11 +2,11 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Button } from '@mui/material';
 import skillsContext from '../Context/skills';
-import { getTestReportsFromFirebase } from '../firebaseUtils';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
+import { getTestReportsFromFirebase,updateTestReportInFirebase2 } from '../firebaseUtils';
+import { db,storage } from '../firebaseConfig';
 import ReportModal from './ReportModal'; // Import the ReportModal component
 import { AiOutlineLoading3Quarters, AiOutlineEye } from 'react-icons/ai';
+import jsPDF from "jspdf";
 
 const Final = () => {
   const { skills } = useContext(skillsContext);
@@ -14,6 +14,7 @@ const Final = () => {
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState(null); // State for report
   const [isModalOpen, setIsModalOpen] = useState(false); // State to manage modal visibility
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -61,62 +62,131 @@ const Final = () => {
     );
   }
 
-  const generateTextReport = async () => {
-    if (!questionsData || questionsData.length === 0) {
-      alert('No report data available to generate the report.');
-      return;
-    }
 
-    if (!report) {
-      console.error('Report data is not defined.');
-      alert('Report data is not available.');
-      return;
-    }
+const generatePDFReport = async () => {
+  const reportData = report;
+  if (!questionsData || questionsData.length === 0) {
+    alert("No report data available to generate the report.");
+    return;
+  }
 
-    let feedback = report.feedback || 'No feedback available'; // Safely access feedback
-    feedback = feedback.replace('Undefined', report.id); // Ensure report.id is defined
-    feedback = feedback.replace('undefined', report.id); // Ensure report.id is defined
-    feedback = feedback.replace('[Your Name]', '');
-    feedback = feedback.replace('[Your Title]', '');
-    feedback = feedback.replace('[Your Company]', '');
-    let textContent = `Feedback Report:\n\n${feedback}\n\nQuestions and Answers:\n`;
+  if (!report) {
+    console.error("Report data is not defined.");
+    alert("Report data is not available.");
+    return;
+  }
 
-    questionsData.forEach((question, index) => {
-      textContent += `\n${index + 1}. Question: ${
-        question.question || 'No question available'
-      }\n`;
-      textContent += `Your Answer: ${question.type==='text'? (question.userTextAnswer|| 'N/A'):(question.userAnswer || 'N/A')}\n`;
-      textContent += `Correct Answer: ${question.correctAnswer || 'N/A'}\n`;
-    });
+   // Extract data
+   const aiAnalysis = reportData.aiAnalysis || {};
+   const expectations = reportData.expectations || {};
+   const suggestions = reportData.suggestions || [];
+ 
 
-    const updateTestReportInFirebase2 = async (userId, textContent) => {
-      try {
-        const reportRef = doc(db, 'testReport', userId);
+  try {
+    const doc = new jsPDF();
+    const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 20; // Margin for content
+    let cursorY = margin;
 
-        await updateDoc(reportRef, {
-          textReport: textContent,
-        });
-
-        console.log('Report updated successfully');
-      } catch (error) {
-        console.error('Error saving report to Firestore:', error);
-        throw error;
+    // Function to handle page overflow
+    const checkPageOverflow = (lineHeight = 10) => {
+      if (cursorY + lineHeight > pageHeight - margin) {
+        doc.addPage();
+        cursorY = margin; // Reset to top margin for the new page
       }
     };
 
-    try {
-      await updateTestReportInFirebase2(skills.email, textContent);
-    } catch (error) {
-      console.error('Error saving report to Firestore:', error);
-      return;
-    }
+    // Function to wrap and render text
+    const renderWrappedText = (text, x, y, maxWidth) => {
+      const lines = doc.splitTextToSize(text, maxWidth);
+      lines.forEach((line) => {
+        checkPageOverflow(10);
+        doc.text(line, x, cursorY);
+        cursorY += 10;
+      });
+    };
 
-    const blob = new Blob([textContent], { type: 'text/plain' });
-    const link = document.createElement('a');
-    link.href = window.URL.createObjectURL(blob);
-    link.download = 'Interview_Report.txt';
-    link.click();
-  };
+    // Function to draw headers
+    const drawSectionHeader = (text) => {
+      checkPageOverflow(20);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.setTextColor("#283593");
+      doc.text(text, margin, cursorY);
+      cursorY += 8;
+      doc.setDrawColor(204, 204, 204);
+      doc.line(margin, cursorY, pageWidth - margin, cursorY); // Underline
+      cursorY += 10;
+    };
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(24);
+    doc.setTextColor("#1A237E");
+    doc.text("Performance Report", pageWidth / 2, cursorY, { align: "center" });
+    cursorY += 30;
+
+    // Basic Information
+    drawSectionHeader("Basic Information");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+
+    renderWrappedText(
+      `Score: ${aiAnalysis.correctAnswers || 0} out of ${aiAnalysis.totalQuestions || 0} questions (${aiAnalysis.scorePercentage || 0}%)`,
+      margin,
+      cursorY,
+      pageWidth - 2 * margin
+    );
+    renderWrappedText(
+      `Employability Score: ${aiAnalysis.employabilityScore || "Not Available"}`,
+      margin,
+      cursorY,
+      pageWidth - 2 * margin
+    );
+    renderWrappedText(
+      `AI Assessment: ${aiAnalysis.aiWords || "Not Available"}`,
+      margin,
+      cursorY,
+      pageWidth - 2 * margin
+    );
+    cursorY+=15;
+    // Performance Feedback
+    drawSectionHeader("Performance Feedback");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    renderWrappedText(
+      reportData.feedback || "No feedback available.",
+      margin,
+      cursorY,
+      pageWidth - 2 * margin
+    );
+
+    // Footer
+    const timestamp = new Date().toLocaleString();
+    checkPageOverflow(10);
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated on: ${timestamp}`, pageWidth / 2, pageHeight - margin, {
+      align: "center",
+    });
+
+    // Generate PDF Blob and Upload
+    const pdfBlob = doc.output("blob");
+
+    await updateTestReportInFirebase2(skills.email, pdfBlob);
+
+    // Save locally
+    doc.save("Interview_Report.pdf");
+  } catch (error) {
+    console.error("Error generating PDF report:", error);
+    alert(`Failed to generate report: ${error.message}`);
+  }
+};
+
+
 
   const viewReport = () => {
     setIsModalOpen(true);
@@ -136,8 +206,8 @@ const Final = () => {
         <Button
           variant="contained"
           color="primary"
-          onClick={generateTextReport}
-          className="transition duration-300 transform hover:scale-105"
+          onClick={generatePDFReport}
+          className="transition duration-300 transform hover:scale-105 focus:outline-none"
         >
           Download Report
         </Button>
@@ -145,7 +215,7 @@ const Final = () => {
           variant="outlined"
           color="primary"
           onClick={viewReport}
-          className="transition duration-300 transform hover:scale-105 border-gray-800 text-gray-300 hover:border-indigo-500 hover:text-indigo-500"
+          className="transition duration-300 transform hover:scale-105 border-gray-800 text-gray-300 hover:border-indigo-500 hover:text-indigo-500 focus:outline-none"
         >
           View Report
         </Button>
@@ -156,6 +226,7 @@ const Final = () => {
         isOpen={isModalOpen}
         onClose={closeReportModal}
         questionsData={questionsData}
+        report={report} 
       />
     </div>
   );

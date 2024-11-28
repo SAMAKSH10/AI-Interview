@@ -446,9 +446,9 @@ const ResumeUpload = ({ onUploadComplete }) => {
       */}
 
       {/* Action Buttons */}
-      <div className="mt-8 flex space-x-4">
+      <div className="mt-8 flex space-x-4 justify-center">
         <button
-          className="inline-flex items-center px-5 py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="inline-flex items-center px-5 py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           onClick={openLoginModal}
         >
           Login as Admin
