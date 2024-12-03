@@ -1,7 +1,7 @@
 // src/firebase.js
 import { ref, uploadBytes } from 'firebase/storage';
-import { doc, setDoc } from 'firebase/firestore';
-import { storage, db } from './firebaseConfig'; // Ensure correct import path
+import { doc, setDoc ,getDoc} from 'firebase/firestore';
+import { storage, db} from './firebaseConfig'; // Ensure correct import path
 
 // Upload video recording to Firebase Storage
 export const uploadRecording = async (userName, videoBlob,type) => {
@@ -28,3 +28,27 @@ export const uploadResumeData = async (userName, userEmail, parsedData) => {
     throw error; // Optionally rethrow to handle higher up
   }
 };
+
+export const changeApiKey = async(key)=>{
+  try{
+    const docRef = doc(db,'config','apikey');
+    await setDoc(docRef,{value:key});
+    console.log('API key updated!');
+  }catch(err){
+    console.error('Error in updating Api key: ',err);
+  }
+}
+
+export const fetchApi = async()=>{
+  try{
+    const docRef = doc(db,'config','apikey');
+    const docSnap = await getDoc(docRef);
+    if(docSnap.exists()){
+      console.log('Key found!',docSnap.data().value);
+      return docSnap.data().value;
+    }
+  }catch(err){
+    console.error('Error in fetching the key :',err);
+    return;
+  }
+}

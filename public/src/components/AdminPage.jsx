@@ -7,13 +7,14 @@ import { Link, Routes, Route } from 'react-router-dom';
 import AddQuestion from './AddQuestion';
 import ManageQuestions from './ManageQuestions';
 import { FaBars, FaRegFileAlt, FaPlus, FaCog } from 'react-icons/fa';
-import { saveAs } from 'file-saver';
+import { RiShieldKeyholeFill } from "react-icons/ri";
 import { AiOutlineLoading3Quarters, AiOutlineEye, AiOutlineDelete, AiOutlineCheckCircle } from 'react-icons/ai';
 import { Button, IconButton, Tooltip as MuiTooltip, CircularProgress, Alert } from '@mui/material';
 import ConfirmationModal from './ConfirmationModal';
 import AdminDashboard from './AdminDashboard';
 import { ref, deleteObject } from "firebase/storage"; // Import ref and deleteObject correctly
 import ReportModal from './ReportModal';
+import UpdateApiKey from './UpdateApiKey';
 
 
 
@@ -244,7 +245,7 @@ ${body}\n
       >
         <button
           onClick={toggleSidebar}
-          className="text-white text-2xl mb-8 focus:outline-none"
+          className="text-white text-2xl mb-8  focus:outline-none hover:outline-none outline-none border-none hover:border-none hover:text-gray-300"
           aria-label="Close Sidebar"
         >
           <FaBars />
@@ -271,6 +272,12 @@ ${body}\n
               Manage Questions
             </Link>
           </li>
+          <li className="mb-4">
+            <Link to="update-apikey" className="flex items-center text-gray-300 hover:text-white transition-colors duration-200">
+            <RiShieldKeyholeFill  className='mr-2' />
+              Update API Key
+            </Link>
+          </li>
         </ul>
       </nav>
 
@@ -278,7 +285,7 @@ ${body}\n
       {!isSidebarOpen && (
         <button
           onClick={toggleSidebar}
-          className="text-white text-2xl fixed top-4 left-4 focus:outline-none z-40"
+          className="text-white text-2xl fixed top-4 left-4 focus:outline-none outline-none border-none hover:border-none hover:text-gray-300 z-40"
           aria-label="Open Sidebar"
         >
           <FaBars />
@@ -426,6 +433,7 @@ ${body}\n
           />
           <Route path="add-question" element={<AddQuestion />} />
           <Route path="manage-questions" element={<ManageQuestions />} />
+          <Route path="update-apikey" element={<UpdateApiKey/>} />
           <Route path="" element={<AdminDashboard testReports={testReports} resumes={resumes} />} />
         </Routes>
 

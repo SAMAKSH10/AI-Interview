@@ -11,9 +11,9 @@ const AdminDashboard =({ testReports, resumes }) => {
     const activeUsers = resumes.length;
   
     return (
-      <section className="p-8 bg-gray-900 shadow-gray-700 text-white rounded-lg shadow-lg mt-10">
+      <section className="p-8 bg-gray-900 shadow-gray-700 text-white rounded-lg  mt-10">
         <h3 className="text-3xl font-semibold mb-6 text-center">Admin Dashboard</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-20">
           <div className="bg-gray-700 p-6 rounded-lg shadow-md">
             <h4 className="text-xl font-semibold mb-2">Total Test Reports</h4>
             <p className="text-4xl font-bold">{totalReports}</p>

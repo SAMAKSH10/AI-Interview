@@ -325,7 +325,9 @@ const TestPage = () => {
           )}
         </div>
       ) : (
-        <div className="bg-white  text-gray-800  p-10 max-w-3xl w-full text-center rounded-lg shadow-lg ">
+        <>
+        {resumeData && (
+          <div className="bg-white  text-gray-800  p-10 max-w-3xl w-full text-center rounded-lg shadow-lg ">
           {/* Title Section */}
           <h1 className="text-4xl font-semibold mb-10 mt-3">
             Welcome to the Skill Assessment Test
@@ -366,6 +368,9 @@ const TestPage = () => {
             Start Test
           </button>
         </div>
+        )}
+        </>
+        
       )}
     </div>
   );

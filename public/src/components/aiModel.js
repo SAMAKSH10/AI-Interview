@@ -1,4 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { fetchApi } from '../firebase';
+
+let apikey = await fetchApi();
 
 export const analyzeReportWithAI = async (report) => {
 
@@ -144,7 +147,7 @@ const evaluateTextAnswerAI = async (question, userAnswer) => {
   // Retry logic
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_API_KEY);
+      const genAI = new GoogleGenerativeAI(apikey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const prompt = `
       Evaluate the user's answer to the given question and respond with either "correct" or "wrong" without explanation.
@@ -219,7 +222,7 @@ const generateAIReportFeedback = async (
     const query = `User answered ${correctAnswers} out of ${totalQuestions} questions correctly, resulting in a score of ${scorePercentage}%. The user had the following job expectations: ${JSON.stringify(report.expectations)}. Provide performance feedback and suggest areas to study if necessary.`;
 
     try {
-      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_API_KEY);
+      const genAI = new GoogleGenerativeAI(apikey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent(query);
 

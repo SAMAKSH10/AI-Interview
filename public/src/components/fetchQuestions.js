@@ -1,6 +1,10 @@
 import { query, collection, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebaseConfig'; // Adjust the path as necessary to import your Firestore db instance
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { fetchApi } from '../firebase';
+
+let apikey = await fetchApi();
+
 
 export const fetchQuestionsBySkills = async (skills) => {
   try {
@@ -50,7 +54,7 @@ export const fetchQuestionsBySkills = async (skills) => {
 
 
 export const generateAdditionalQuestionsAI = async (skills, limit) => {
-  const genAI = new GoogleGenerativeAI(import.meta.env.VITE_API_KEY);
+  const genAI = new GoogleGenerativeAI(apikey);
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   const prompt = `Here are skills: ${skills}. Generate exactly ${limit} hardest technical questions. In the format Ques: *** question generated ***`;
 
