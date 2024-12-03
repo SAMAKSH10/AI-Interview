@@ -3,7 +3,10 @@ import { db } from '../firebaseConfig'; // Adjust the path as necessary to impor
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { fetchApi } from '../firebase';
 
-let apikey = await fetchApi();
+let apikey ='';
+(async () => {
+  apikey = await fetchApi(); // Fetch API key inside an IIFE
+})();
 
 
 export const fetchQuestionsBySkills = async (skills) => {

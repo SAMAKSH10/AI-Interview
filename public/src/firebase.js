@@ -44,7 +44,7 @@ export const fetchApi = async()=>{
     const docRef = doc(db,'config','apikey');
     const docSnap = await getDoc(docRef);
     if(docSnap.exists()){
-      console.log('Key found!',docSnap.data().value);
+      console.log('Key found!');
       return docSnap.data().value;
     }
   }catch(err){
