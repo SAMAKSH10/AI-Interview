@@ -75,9 +75,9 @@ const skills = [
     'Agile Methodologies', 'Scrum', 'Kanban', 'UI/UX Design', 'SEO', 'Content Management', 'Project Management', 'Cybersecurity', 'Blockchain', 'Artificial Intelligence',
     'Internet of Things', 'Big Data', 'Data Visualization', 'Business Intelligence', 'CRM', 'ERP', 'Digital Marketing', 'E-Commerce', 'Copywriting', 'Video Editing',
     '3D Modeling', 'Augmented Reality', 'Virtual Reality', 'Game Development', 'CAD', 'Embedded Systems', 'Robotics', 'Quantum Computing', 'Edge Computing', 'Wearables',
+    'Figma','Adobe XD','Sketch','InVision Studio','Canva','Motion design','Micro-interactions','Feedback and affordance design','A/B testing','Heuristic evaluation','Webflow','Sketch','Photoshop'
     // (Expand with emerging technologies, industries, business skills, and niche fields)
 
-    // Keep adding to each section...
 ];
 
 export default skills;

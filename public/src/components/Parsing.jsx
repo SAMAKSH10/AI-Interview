@@ -12,6 +12,8 @@ import skillsList from './skills';
 import { auth } from '../firebaseConfig';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
+import { test } from '../test';
+import {toast} from 'react-toastify'
 
 const ResumeUpload = ({ onUploadComplete }) => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -53,6 +55,10 @@ const ResumeUpload = ({ onUploadComplete }) => {
   }, [selectedFile, extractedData, skills.skills]);
 
   const handleFileChange = (e) => {
+    if(!test()){
+      toast.error('Invalid api key');
+      return;
+    }
     const file = e.target.files[0];
     if (validateFile(file)) {
       setSelectedFile(file);
@@ -119,8 +125,17 @@ const ResumeUpload = ({ onUploadComplete }) => {
       }
 
       const parsedData = parseResumeText(extractedText);
-      parsedData.skills.push('Corporate'); // Existing functionality
+      parsedData.skills.push('corporate'); // Existing functionality
       setExtractedData(parsedData);
+      const filteredData = parsedData.skills.filter(
+        (skill) => skill.toLowerCase() !== 'corporate'
+    );
+    if (filteredData.length === 0) {
+      setError('Invalid Resume format!');
+      setIsParsing(false);
+      setIsUploading(false);
+      return;
+  }    
 
       setSkills({
         ...skills,

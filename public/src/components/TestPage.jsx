@@ -210,11 +210,11 @@ const TestPage = () => {
             <div className="flex items-center space-x-4">
               {isRecording ? (
                 <button
-                  onClick={() => navigate("/")}
-                  className="flex items-center bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition text-lg font-medium"
+                  onClick={() => location.reload()}
+                  className="flex items-center bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition text-lg font-medium border-none outline-none focus:outline-red-600"
                   aria-label="Stop Recording and Submit Test"
                 >
-                  <AiOutlineStop className="w-6 h-6 mr-3" />
+                  <AiOutlineStop className="w-6 h-6 mr-3 outline-none focus:outline-red-600 border-none" />
                   Stop Recording
                 </button>
               ) : (

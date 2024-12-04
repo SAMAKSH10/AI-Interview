@@ -7,6 +7,9 @@ import ExpectationPage from './components/ExpectationPage';
 import AdminPage from './components/AdminPage';
 import Final from './components/Final';
 import PrivateRoute from './components/PrivateRoute'; // Import PrivateRoute
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 
 const App = () => {
   return (
@@ -29,6 +32,7 @@ const App = () => {
           <Route path="/final" element={<Final />} />
         </Routes>
       </Router>
+      <ToastContainer />
     </SkillsProvider>
   );
 };
