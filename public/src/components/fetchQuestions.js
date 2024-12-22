@@ -59,7 +59,7 @@ export const fetchQuestionsBySkills = async (skills) => {
 export const generateAdditionalQuestionsAI = async (skills, limit) => {
   const genAI = new GoogleGenerativeAI(apikey);
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-  const prompt = `Here are skills: ${skills}. Generate exactly ${limit} hardest technical questions. In the format Ques:question generated`;
+  const prompt = `Here are skills: ${skills}. Generate exactly ${limit} hardest technical questions and it should not involve writting code. In the format Ques:question generated`;
 
   try {
     const result = await model.generateContent(prompt);
@@ -67,7 +67,7 @@ export const generateAdditionalQuestionsAI = async (skills, limit) => {
 
     // Ensure result has candidates and access the response text
     const responseText = result.response?.text?.() || '';
-    console.log("AI Response Text: ", responseText);
+   // console.log("AI Response Text: ", responseText);
 
     // Use regex to extract questions based on the expected format
     const questionsArray = responseText

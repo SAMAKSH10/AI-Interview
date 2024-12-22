@@ -1,122 +1,67 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { fetchApi } from '../firebase';
 
-let apikey ='';
+let apikey = '';
 (async () => {
   apikey = await fetchApi(); // Fetch API key inside an IIFE
 })();
 
-
 export const analyzeReportWithAI = async (report) => {
-
-  
-
-  // Filter out questions with 'Corporate' skill and ensure type is 'mcq' or 'text'
-  const questionsToEvaluate = report.questions.filter(
-    (q) =>
-      (q.type === 'text')
-      //    || q.type === 'text') &&
-      // !(q.skills && q.skills.includes('Corporate'))
-  );
-  const mcqQuestions = report.questions.filter((q)=>(q.type ==='mcq'));
-  
-
-  const totalQuestions = report.questions.length;
+  // Separate questions by type
+  const textQuestions = report.questions.filter((q) => q.type === 'text');
+  const mcqQuestions = report.questions.filter((q) => q.type === 'mcq');
+  const totalQuestions = 10;
 
   if (totalQuestions === 0) {
     console.warn('No evaluable questions found in the report.');
-    const emptyReport = generateEmptyReport(report);
-    return emptyReport;
+    return generateEmptyReport(report);
   }
 
-  // Evaluate each question and collect results
-  const evaluationPromises = questionsToEvaluate.map(async (question) => {
+  // Evaluate text questions
+  const textEvaluationPromises = textQuestions.map(async (question) => {
     const userAnswer = question.userTextAnswer;
 
-    // Treat 'N/A', null, undefined, or empty string as unanswered
     if (!userAnswer || userAnswer.toLowerCase() === 'n/a') {
-      console.warn(`No valid answer provided for question with ID: ${question.id}`);
-      return { isCorrect: false, type: question.type };
+      return { ...question, isCorrect: false }; // Unanswered questions are marked incorrect
     }
 
     try {
-      if (question.type !== 'text') {
-        // Evaluate MCQ questions
-        const isCorrect = userAnswer === question.correctAnswer;
-        return { isCorrect, type: 'mcq' };
-      } else if (question.type === 'text') {
-        // Evaluate text-based questions with AI
-        const evaluation = await evaluateTextAnswerAI(question.question, question.userTextAnswer);
-        question.aiEvaluation = evaluation; // Store AI evaluation in the report for future reference
-        return { isCorrect: evaluation === 'correct', type: 'text' };
-      } else {
-        console.warn(`Unknown question type for question ID: ${question.id}`);
-        return { isCorrect: false, type: question.type };
-      }
+      const evaluation = await evaluateTextAnswerAI(question.question, userAnswer);
+      question.isCorrect = evaluation === 'correct';
+      question.aiEvaluation = evaluation; // Store AI evaluation
+      return question;
     } catch (error) {
-      console.error(`Error evaluating question ID: ${question.id}`, error);
-      return { isCorrect: false, type: question.type };
+      console.error(`Error evaluating text question ID: ${question.id}`, error);
+      return { ...question, isCorrect: false };
     }
   });
 
-  // Wait for all evaluations to complete
-  //const evaluationResults = await Promise.all(evaluationPromises);
-  
-
-  // Aggregate the results
-  let correctAnswers = 0;
-  let mcqCorrect = 0;
-  let textCorrect = 0;
-
- // Evaluate MCQs using index and question
- mcqQuestions.forEach((question, index) => {
-  // console.log(`Evaluating Question ${index + 1}: ${question.question}`);
-  // console.log(`User Answer: ${question.userAnswer}`);
-  // console.log(`Correct Answer: ${question.correctAnswer}`);
-
-  // Compare userAnswer with correctAnswer
-  if (question.userAnswer && question.userAnswer === question.correctAnswer) {
-    correctAnswers++;
-    // console.log(`Question ${index + 1}: Correct`);
-  } else {
-    // console.log(`Question ${index + 1}: Incorrect`);
-  }
-});
-
-
-
-  const evaluationResults = await Promise.all(evaluationPromises);
-  evaluationResults.forEach((result) => {
-    if (result.isCorrect) {
-      correctAnswers++;
-      if (result.type === 'mcq') {
-        mcqCorrect++;
-      } else if (result.type === 'text') {
-        textCorrect++;
-      }
-    }
+  // Evaluate MCQ questions
+  mcqQuestions.forEach((question) => {
+    question.isCorrect = question.userAnswer === question.correctAnswer;
   });
-  // Calculate the total score percentage
-  const scorePercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
-  // Calculate employability score based on the results
+  // Combine all evaluations
+  const evaluatedTextQuestions = await Promise.all(textEvaluationPromises);
+  const evaluatedQuestions = [...evaluatedTextQuestions, ...mcqQuestions];
+
+  // Aggregate results
+  const correctAnswers = evaluatedQuestions.filter((q) => q.isCorrect).length;
+  const mcqCorrect = mcqQuestions.filter((q) => q.isCorrect).length;
+  const textCorrect = evaluatedTextQuestions.filter((q) => q.isCorrect).length;
+
+  const scorePercentage = (correctAnswers / totalQuestions) * 100;
   const employabilityScore = calculateEmployabilityScore(scorePercentage);
 
-  // Generate AI feedback based on performance
-  const feedback = await generateAIReportFeedback(
-    report,
-    scorePercentage,
-    correctAnswers,
-    totalQuestions
-  );
+  const feedback = await generateAIReportFeedback(report, scorePercentage, correctAnswers, totalQuestions);
 
-  // Generate the final report
+  // Final report
   const finalReport = {
     totalQuestions,
     correctAnswers,
     mcqCorrect,
     textCorrect,
-    scorePercentage: parseFloat(scorePercentage.toFixed(2)), // Round to 2 decimal places
+    scorePercentage: parseFloat(scorePercentage.toFixed(2)),
     employabilityScore,
     feedback,
     suggestions: generateSuggestions(scorePercentage),
@@ -124,83 +69,54 @@ export const analyzeReportWithAI = async (report) => {
     aiWords: generateAiWords(scorePercentage),
     fakePercentage: calculateFakePercentage(report),
     isHuman: determineIfHuman(report),
-    timestamp: new Date(), // Add timestamp for record-keeping
-    headers: report.headers || [], // Include headers from the original report
-    urls: report.urls || [], // Include URLs from the original report
+    timestamp: new Date(),
+    headers: report.headers || [],
+    urls: report.urls || [],
+    questions: evaluatedQuestions, // Include evaluated questions with `isCorrect` field
   };
 
   return finalReport;
 };
 
-
-// =========================
 // Helper Functions
-// =========================
 
 /**
- * Function to evaluate text-based answers using AI
- * @param {string} question - The question text
- * @param {string} userAnswer - The user's answer
- * @returns {Promise<string>} - 'correct' or 'wrong'
+ * Evaluate text answers using AI.
  */
 const evaluateTextAnswerAI = async (question, userAnswer) => {
-  const maxRetries = 3; // Maximum number of retries
-  const delayBetweenRetries = 2000; // Delay in milliseconds between retries (2 seconds)
-  
-  // Helper function to delay execution for a specified time
-  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const genAI = new GoogleGenerativeAI(apikey);
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const prompt = `
+  Evaluate the user's answer to the given question and respond with "correct" or "wrong" only.
+  Consider the answer correct even if partially correct.
 
-  // Retry logic
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const genAI = new GoogleGenerativeAI(apikey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `
-      Evaluate the user's answer to the given question and respond with either "correct" or "wrong" without explanation.
-  
-      Examples:
-      Question: "What is the capital of India?"
-      User's Answer: "New Delhi is the capital of India"
-      Response: "correct"
-  
-      Question: "What is the capital of India?"
-      User's Answer: "India is the capital of India"
-      Response: "wrong"
-  
-      Now evaluate:
-      Question: ${question}
-      User's Answer: ${userAnswer}
-      Response:
-      `;
-  
-      const result = await model.generateContent(prompt);
-      console.log(result);
-  
-      // Extract evaluation from the response
-      let evaluation = 'wrong'; // Default to 'wrong'
-      if (result && result.response.text()) {
-        evaluation = result.response.text().trim().toLowerCase();
-        console.log('AI Evaluation:', evaluation);
-      } else {
-        console.error('AI did not return a valid evaluation:', result);
-      }
-  
-      return evaluation === 'correct' ? 'correct' : 'wrong';
-    } catch (error) {
-      console.error(`Attempt ${attempt} failed:`, error.message);
-      
-      // If it is the last attempt, throw the error after retries are exhausted
-      if (attempt === maxRetries) {
-        console.error('Max retries reached. Returning default response (wrong).');
-        return 'wrong'; // Return 'wrong' as default in case of failure
-      }
+  Examples:
+  Question: "What is the capital of India?"
+  User's Answer: "New Delhi is the capital of India."
+  Response: "correct"
 
-      // Wait before retrying
-      console.log(`Retrying in ${delayBetweenRetries / 1000} seconds...`);
-      await delay(delayBetweenRetries);
-    }
+  Question: "What is the capital of India?"
+  User's Answer: "India is the capital of India."
+  Response: "wrong"
+
+  Now evaluate:
+  Question: ${question}
+  User's Answer: ${userAnswer}
+  Response:
+  `;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const evaluation = result?.response?.text()?.trim().toLowerCase() || 'wrong';
+    return evaluation;
+  } catch (error) {
+    console.error('Error in AI evaluation:', error.message);
+    return 'wrong'; // Default to wrong in case of failure
   }
 };
+
+// Additional helper functions remain unchanged
+// ...
 
 
 /**

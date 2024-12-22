@@ -52,3 +52,13 @@ export const fetchApi = async()=>{
     return;
   }
 }
+
+export const detectDevice = async()=>{
+  try{
+    const userAgentCheck = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const screenSizeCheck = window.innerWidth <= 768;
+    return userAgentCheck || screenSizeCheck;
+  }catch(err){
+    console.error('Error in detecting device');
+  }
+}

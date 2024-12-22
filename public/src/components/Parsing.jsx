@@ -14,6 +14,8 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { test } from '../test';
 import {toast} from 'react-toastify'
+import { detectDevice } from '../firebase';
+
 
 const ResumeUpload = ({ onUploadComplete }) => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -23,6 +25,7 @@ const ResumeUpload = ({ onUploadComplete }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [desktop,setDesktop]= useState();
 
   // New state variables for login modal
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -53,6 +56,19 @@ const ResumeUpload = ({ onUploadComplete }) => {
     };
     localStorage.setItem('resumeDraft', JSON.stringify(draft));
   }, [selectedFile, extractedData, skills.skills]);
+
+  useEffect(() => {
+    const checkDevice = async () => {
+      const result = await detectDevice(); // Call detectDevice function
+      if (result !== false) {
+        setDesktop(true);
+      }
+      console.log(result);
+    };
+
+    checkDevice(); // Invoke the async function
+  }, []);
+
 
   const handleFileChange = (e) => {
     if(!test()){
@@ -475,11 +491,11 @@ const ResumeUpload = ({ onUploadComplete }) => {
         <button
           onClick={handleSubmit}
           className={`inline-flex items-center px-5 py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-            isUploading || isParsing
+            isUploading || isParsing || !desktop
               ? 'bg-indigo-400 cursor-not-allowed'
               : 'bg-indigo-600 hover:bg-indigo-700'
           } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
-          disabled={isUploading || isParsing}
+          disabled={isUploading || isParsing || !desktop}
         >
           {isUploading || isParsing ? (
             <>
@@ -491,6 +507,20 @@ const ResumeUpload = ({ onUploadComplete }) => {
           )}
         </button>
       </div>
+
+      {/* Error */}
+      {!desktop &&(
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
+          <div className="bg-red-100 border-l-4  border-red-500 text-red-700 p-10 mb-6 rounded-lg">
+            <h2 className="text-xl font-semibold">⚠️ Desktop Not Detected</h2>
+            <ul className="mt-6 text-sm text-left list-disc list-inside space-y-2">
+              <li>
+               Please Attept the test from Desktop !!
+              </li>
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Login Modal */}
       {showLoginModal && (

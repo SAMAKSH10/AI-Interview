@@ -155,7 +155,7 @@ const ReportModal = ({
               <div className="bg-pink-500 p-4 rounded-lg text-center">
                 <p className="text-2xl font-bold">
                   {aiAnalysis.correctAnswers || 0}/
-                  {aiAnalysis.totalQuestions || 0}
+                  {10}
                 </p>
                 <p className="text-sm">Correct Answers</p>
               </div>
@@ -192,7 +192,7 @@ const ReportModal = ({
             ) : (
               <div className="space-y-4">
                 {questionsData.map((question, index) => (
-                  <div key={index} className="bg-gray-600 p-4 rounded-lg">
+                  <div key={index} className={` text-gray-100 ${!question.skills.includes('Corporate')?(!question.isCorrect ?('bg-red-700'):('bg-green-700')):('bg-gray-600')} p-4 rounded-lg`}>
                     <h4 className="text-lg font-medium mb-2">
                       {index + 1}.{" "}
                       {question.question || " No question available"}
@@ -202,12 +202,12 @@ const ReportModal = ({
                       {question.userAnswer || question.userTextAnswer || "Not Answered"}
                     </p>
                     
-                     {question.correctAnswer && (
+                     {/* {question.correctAnswer && (
                       <p>
                       <span className="font-semibold">Correct Answer:</span>{" "}
                       {question.correctAnswer}
                     </p>
-                     )}
+                     )} */}
                     
                   </div>
                 ))}

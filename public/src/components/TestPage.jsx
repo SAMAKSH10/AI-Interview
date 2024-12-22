@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { startRecording, stopRecording } from "./recorder";
+import {
+  checkPermissionGranted,
+  enterFullscreen,
+  requestPermissions,
+  specialKeyChecks,
+  startRecording,
+  stopRecording,
+} from "./recorder";
 import { fetchQuestionsBySkills } from "./fetchQuestions";
 import { saveTestReportToFirebase } from "../firebaseUtils";
 import UserDetailsModal from "./UserDetailsModal";
 import skillsContext from "../Context/skills";
+import { toast } from "react-toastify";
 import {
   AiOutlineLoading3Quarters,
   AiOutlineStop,
@@ -19,7 +27,7 @@ const TestPage = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timePerQuestion, setTimePerQuestion] = useState({});
   const [questionStartTime, setQuestionStartTime] = useState(null);
-  const [timer, setTimer] = useState(600); // 10 minutes in seconds
+  const [timer, setTimer] = useState(60*15); // 10 minutes in seconds
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [showModal, setShowModal] = useState(true);
   const [testStarted, setTestStarted] = useState(false);
@@ -28,6 +36,8 @@ const TestPage = () => {
   const [textAnswers, setTextAnswers] = useState({});
   const navigate = useNavigate();
   const { skills } = useContext(skillsContext);
+  const [permission, setPermission] = useState(false);
+  const [isTestSubmitting, setIsTestSubmitting] = useState(false);
 
   // Fetch questions based on resume skills
   useEffect(() => {
@@ -55,7 +65,8 @@ const TestPage = () => {
   // Timer logic
   useEffect(() => {
     let interval = null;
-    if (isTimerActive) {
+
+    if (isTimerActive && !isSubmitting) {
       interval = setInterval(() => {
         setTimer((prev) => {
           if (prev <= 1) {
@@ -67,23 +78,63 @@ const TestPage = () => {
         });
       }, 1000);
     }
+
+    // Clear the interval when component unmounts or dependencies change
     return () => clearInterval(interval);
-  }, [isTimerActive]);
+  }, [isTimerActive, isSubmitting])
 
   // Start recording when test starts
   useEffect(() => {
-    if (testStarted) {
-      startRecording();
-
-      setIsRecording(true);
-    }
     return () => {
       if (isRecording) {
-        stopRecording(skills.email, skills.email);
+        stopRecording(skills.email);
         setIsRecording(false);
       }
     };
   }, [testStarted]);
+
+  // useEffect(() => {
+  //   // Function to handle keydown events
+  //   const handleKeyDown = (event) => {
+  //     if (event.key === "Escape") {
+  //       console.log("Escape key pressed.");
+  //       setIsSpecialKeyPressed(true);
+  //       toast.error("Escape key pressed. Reloading the page...", {
+  //         autoClose: 3000, // Toast will close after 3 seconds
+  //       });
+
+  //       // Reload the page after a short delay
+  //       setTimeout(() => {
+  //         window.location.reload();
+  //       }, 3000); // Match delay with toast's autoClose
+  //     }
+  //   };
+  //   //  specialKeyChecks();
+  //   // Add event listener
+  //   window.addEventListener("keydown", handleKeyDown);
+
+  //   // Cleanup event listener on component unmount
+  //   return () => {
+  //     window.removeEventListener("keydown", handleKeyDown);
+  //   };
+  // }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && !isTestSubmitting) {
+        // Re-enter fullscreen if user exits during the test
+        setTimeout(() => window.location.reload(), 2000);
+        toast.error("Test Rules are not followed");
+      }
+    };
+  
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+  
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, [isTestSubmitting]);
+  
 
   const handleSelectAnswer = (choice) => {
     const currentTime = Date.now();
@@ -125,15 +176,30 @@ const TestPage = () => {
   };
 
   const handleSubmitTest = async () => {
-    setIsSubmitting(true);
-    await stopRecording(skills.email, skills.email);
-    await saveTestReportToFirebase(
-      { userDetails, questions, timePerQuestion, textAnswers },
-      skills.email
-    );
-    setIsSubmitting(false);
-    navigate("/expectation");
+    try {
+      setIsTestSubmitting(true); // Set submitting state
+      await stopRecording(skills.email, skills.email);
+  
+      // Exit fullscreen mode when submitting the test
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+  
+      await saveTestReportToFirebase(
+        { userDetails, questions, timePerQuestion, textAnswers },
+        skills.email
+      );
+  
+      toast.success("Test submitted successfully!");
+      navigate("/expectation", { replace: true });
+    } catch (error) {
+      console.error("Error submitting test:", error);
+      toast.error("Failed to submit test. Please try again.");
+    } finally {
+      setIsTestSubmitting(false); // Reset submitting state
+    }
   };
+  
 
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
@@ -145,7 +211,48 @@ const TestPage = () => {
     setTestStarted(true);
     setIsTimerActive(true);
     setQuestionStartTime(Date.now());
+    enterFullscreen();
   };
+
+  // const handleGrantPermission = async () => {
+  //   requestPermissions();
+
+  //   const isCheckPermission = checkPermissionGranted();
+  //   console.log("isChecking Permission : ", isCheckPermission);
+  //   if (isCheckPermission) {
+  //     startRecording();
+  //     setIsRecording(true);
+  //     setPermission(true);
+  //   } else {
+  //     toast.error("Please grant permission for cam or screen share");
+  //   }
+  //   console.log("is setpermission : ", permission);
+  // };
+
+  const handleGrantPermission = async () => {
+    try {
+      await requestPermissions(); // Ensure permissions are requested properly
+      const isCheckPermission = checkPermissionGranted();
+  
+      if (isCheckPermission) {
+        await startRecording(); // Start recording only if permission is granted
+        setIsRecording(true);
+        setPermission(true); // Update state to reflect permission granted
+        toast.success("Permission granted! You can now start the test.");
+      } else {
+        toast.error("Please grant permission for webcam or screen share.");
+      }
+    } catch (error) {
+      console.error("Error granting permission:", error);
+      toast.error("An error occurred while granting permissions.");
+    }
+  };
+  
+
+  useEffect(() => {
+    const isCheckPermission = checkPermissionGranted();
+    if (isCheckPermission) setPermission(true);
+  }, [permission]);
 
   // Check if the current question is answered
   const isAnswerSelected = () => {
@@ -208,7 +315,7 @@ const TestPage = () => {
               Time Remaining: {formatTime(timer)}
             </h2>
             <div className="flex items-center space-x-4">
-              {isRecording ? (
+              {/* {isRecording ? (
                 <button
                   onClick={() => location.reload()}
                   className="flex items-center bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition text-lg font-medium border-none outline-none focus:outline-red-600"
@@ -229,7 +336,7 @@ const TestPage = () => {
                   <AiOutlinePlayCircle className="w-6 h-6 mr-3" />
                   Start Recording
                 </button>
-              )}
+              )} */}
             </div>
           </div>
 
@@ -266,51 +373,54 @@ const TestPage = () => {
                 ) : (
                   // Render Multiple Choice Answers
                   <div className="space-y-4">
-{questions[currentQuestionIndex].choices.map((choice, index) => (
+                    {questions[currentQuestionIndex].choices.map(
+                      (choice, index) => (
                         <div
                           key={index}
                           onClick={() => handleSelectAnswer(choice)}
                           className={`cursor-pointer p-4 rounded-lg border transition ${
-                            questions[currentQuestionIndex].userAnswer === choice
-                              ? 'border-blue-500 bg-blue-100'
-                              : 'border-gray-300 bg-white'
+                            questions[currentQuestionIndex].userAnswer ===
+                            choice
+                              ? "border-blue-500 bg-blue-100"
+                              : "border-gray-300 bg-white"
                           }`}
                         >
                           {choice}
                         </div>
-                      ))}
+                      )
+                    )}
                   </div>
                 )}
               </div>
 
               {/* Next Button */}
               <div className="flex justify-between mt-10">
-                {!(currentQuestionIndex === questions.length - 1)&&(
+                {!(currentQuestionIndex === questions.length - 1) && (
                   <button
-                  onClick={handleNextQuestion}
-                  disabled={!isAnswerSelected()}
-                  className={`px-6 py-3 rounded-lg text-lg font-medium transition border-none focus:outline-none outline-none ${
-                    isAnswerSelected()
-                      ? "bg-blue-600 hover:bg-blue-700 focus:outline-blue-400 text-white"
-                      : "bg-gray-400 cursor-not-allowed text-white"
-                  }`}
-                >
-                  Next
-                </button>
-                ) }
+                    onClick={handleNextQuestion}
+                    disabled={!isAnswerSelected()}
+                    className={`px-6 py-3 rounded-lg text-lg font-medium transition border-none focus:outline-none outline-none ${
+                      isAnswerSelected()
+                        ? "bg-blue-600 hover:bg-blue-700 focus:outline-blue-400 text-white"
+                        : "bg-gray-400 cursor-not-allowed text-white"
+                    }`}
+                  >
+                    Next
+                  </button>
+                )}
 
                 {/* Submit Button */}
-                {(currentQuestionIndex === questions.length - 1)&& (
+                {currentQuestionIndex === questions.length - 1 && (
                   <button
                     onClick={handleSubmitTest}
-                    disabled={isSubmitting || !isAnswerSelected()}
+                    disabled={isTestSubmitting || !isAnswerSelected()}
                     className={`px-6 py-3 rounded-lg text-lg font-medium transition text-white ${
-                      isSubmitting && !isAnswerSelected()
+                      isTestSubmitting && !isAnswerSelected()
                         ? "bg-green-400 cursor-not-allowed"
                         : "bg-green-600 hover:bg-green-700"
                     }`}
                   >
-                    {isSubmitting ? ("Submitting..." ):( "Submit Test")}
+                    {isTestSubmitting ? "Submitting..." : "Submit Test"}
                   </button>
                 )}
               </div>
@@ -326,51 +436,72 @@ const TestPage = () => {
         </div>
       ) : (
         <>
-        {resumeData && (
-          <div className="bg-white  text-gray-800  p-10 max-w-3xl w-full text-center rounded-lg shadow-lg ">
-          {/* Title Section */}
-          <h1 className="text-4xl font-semibold mb-10 mt-3">
-            Welcome to the Skill Assessment Test
-          </h1>
+          {resumeData && (
+            <div className="bg-white  text-gray-800  p-10 max-w-3xl w-full text-center rounded-lg shadow-lg ">
+              {/* Title Section */}
+              <h1 className="text-4xl font-semibold mb-10 mt-3">
+                Welcome to the Skill Assessment Test
+              </h1>
 
-          {/* Warnings and Precautions Section */}
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg">
-            <h2 className="text-xl font-semibold">⚠️ Important Warnings:</h2>
-            <ul className="mt-6 text-sm text-left list-disc list-inside space-y-2">
-              <li>
-                No external devices or assistance is allowed during the test.
-              </li>
-              <li>
-                Switching tabs or windows will be flagged as suspicious
-                activity.
-              </li>
-              <li>Any form of cheating will result in disqualification.</li>
-            </ul>
-          </div>
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded-lg">
-            <h2 className="text-xl font-semibold">
-              🛡️ Precautions Before Starting:
-            </h2>
-            <ul className="mt-6 space-y-2 text-sm text-left list-disc list-inside">
-              <li>
-                Ensure your webcam and microphone are functioning properly.
-              </li>
-              <li>Make sure you have a stable internet connection.</li>
-              <li>Find a quiet, well-lit environment for the test.</li>
-            </ul>
-          </div>
+              {/* Warnings and Precautions Section */}
+              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg">
+                <h2 className="text-xl font-semibold">
+                  ⚠️ Important Warnings:
+                </h2>
+                <ul className="mt-6 text-sm text-left list-disc list-inside space-y-2">
+                <li>
+    The use of external devices or any form of assistance during the test is strictly prohibited.
+  </li>
+  <li>
+    Switching tabs, minimizing the window, or not sharing the full-screen view will be monitored and flagged as a violation.
+  </li>
+  <li>
+    When prompted to share your screen, please ensure that you share your full screen instead of just a browser tab or application window.
+  </li>
+  <li>
+    Any form of cheating or suspicious activity will result in immediate disqualification and invalidation of the test score.
+  </li>
+  <li>
+    To ensure fairness and transparency, please remain focused on the test window for its entire duration.
+  </li>
+                </ul>
+              </div>
+              <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded-lg">
+                <h2 className="text-xl font-semibold">
+                  🛡️ Precautions Before Starting:
+                </h2>
+                <ul className="mt-6 space-y-2 text-sm text-left list-disc list-inside">
+                  <li>
+                    Ensure your webcam and microphone are functioning properly.
+                  </li>
+                  <li>Make sure you have a stable internet connection.</li>
+                  <li>Find a quiet, well-lit environment for the test.</li>
+                </ul>
+              </div>
 
-          {/* Start Test Button */}
-          <button
-            onClick={handleStartTest}
-            className="mt-6 bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition text-xl font-medium border-none outline-none focus:outline-none"
-          >
-            Start Test
-          </button>
-        </div>
-        )}
+              <div className="flex space-x-5 justify-center items-center">
+                {!permission && (
+                  <button
+                    onClick={handleGrantPermission}
+                    className="mt-6 bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition text-xl font-medium border-none outline-none focus:outline-none"
+                  >
+                    Grant Permission
+                  </button>
+                )}
+
+                {/* Start Test Button */}
+                {permission && (
+                  <button
+                    onClick={handleStartTest}
+                    className="mt-6 bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition text-xl font-medium border-none outline-none focus:outline-none"
+                  >
+                    Start Test
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </>
-        
       )}
     </div>
   );
