@@ -60,7 +60,7 @@ const ResumeUpload = ({ onUploadComplete }) => {
   useEffect(() => {
     const checkDevice = async () => {
       const result = await detectDevice(); // Call detectDevice function
-      if (result !== false) {
+      if (result === false) {
         setDesktop(true);
       }
       console.log(result);
